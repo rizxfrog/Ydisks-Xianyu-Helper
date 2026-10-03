@@ -87,7 +87,7 @@ jobs:
           path: dist/artifacts
           merge-multiple: true
 
-      - name: 校验桌面产物并生成校验和
+      - name: 校验发布产物并生成校验和
         shell: bash
         env:
           APP_VERSION: ${{ needs.prepare.outputs.app_version }}
@@ -104,6 +104,8 @@ jobs:
             "Ydisks-Xianyu-Helper-Setup.exe"
             "Ydisks-Xianyu-Helper-$APP_VERSION-arm64.pkg"
             "Ydisks-Xianyu-Helper-$APP_VERSION-amd64.pkg"
+            "ydisks-xianyu-helper-docker-linux-amd64-$APP_VERSION.tar.gz"
+            "ydisks-xianyu-helper-docker-linux-arm64-$APP_VERSION.tar.gz"
           )
           for release_file in "${expected_release_files[@]}"; do
             source_file="dist/artifacts/$release_file"
@@ -127,7 +129,7 @@ jobs:
             exit 1
           fi
 
-          echo "准备发布的桌面产物："
+          echo "准备发布的产物："
           find dist/release -maxdepth 1 -type f -printf '%f\n' | sort
           echo "准备发布的 Docker 摘要："
           find dist/digests -maxdepth 1 -type f -printf '%f\n' | sort

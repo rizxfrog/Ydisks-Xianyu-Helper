@@ -196,10 +196,22 @@ Windows and macOS controllers show checking, starting, healthy, and stopping sta
 and open the log directory. Exiting the controller stops the backend first. Linux installation must run install.sh as
 root on the matching architecture and uses systemd. Uninstall retains /var/lib/ydisks-xianyu-helper by default.
 
-Formal releases provide Windows, macOS arm64/amd64, and Linux amd64/arm64 packages. Release tags use v1.2.3 format
-and must point to main. The release workflow builds and tests every native architecture, launches Chromium, checks
-/health, waits for production-release Environment approval, and then publishes packages, SHA256SUMS, Docker tags,
-and a GitHub Release. Windows and macOS signing requires the configured certificate Secrets; Linux does not.
+Formal releases provide Windows, macOS arm64/amd64, and Linux amd64/arm64 packages, plus one compressed Docker
+image archive per architecture. Release tags use v1.2.3 format and must point to main. The release workflow builds
+and tests every native architecture, launches Chromium, checks /health, waits for production-release Environment
+approval, and then publishes packages, Docker image archives, SHA256SUMS, Docker tags, and a GitHub Release.
+Windows and macOS signing requires the configured certificate Secrets; Linux does not.
+
+Docker image archives are named `ydisks-xianyu-helper-docker-linux-<arch>-<version>.tar.gz` and carry both the
+release version tag and the `sha-<full-commit>` tag, so they load without a registry connection. Each archive
+contains only its own architecture; anonymous GHCR pulls remain the multi-architecture option:
+
+~~~bash
+docker load --input ydisks-xianyu-helper-docker-linux-amd64-1.2.3.tar.gz
+# compose.yml 默认使用 latest 且 pull_policy 为 always；离线导入后指向已加载的版本标签并禁止拉取。
+export XIANYU_IMAGE=ghcr.io/christ9038/ydisks-xianyu-helper:1.2.3
+docker compose up -d --pull never
+~~~
 
 Local macOS packaging:
 
@@ -289,6 +301,8 @@ ghcr.io/christ9038/ydisks-xianyu-helper:latest
 
 The dev branch publishes dev and sha-full-commit tags. A v1.2.3 tag publishes v1.2.3, 1.2.3, 1.2, latest, and
 sha-full-commit tags after all tests, native Chromium launches, health checks, desktop builds, and approval.
+Every formal GitHub Release also attaches one `ydisks-xianyu-helper-docker-linux-<arch>-<version>.tar.gz` per
+architecture for registries without GHCR access; load it with `docker load --input <file>` and retag as needed.
 
 ~~~bash
 docker compose up -d

@@ -315,7 +315,9 @@ The desktop CI workflow runs on `main` and `dev`; formal desktop builds are invo
 must not use QEMU or cross-architecture emulation. Docker publishing also builds each architecture on its native
 runner: branch builds publish `main` or `dev` plus a full-commit `sha-*` tag, while formal builds publish semantic
 version tags, `latest`, and the full-commit `sha-*` tag only after the `production-release` Environment approval.
-Version tags create a GitHub Release containing all platform packages and SHA-256 checksums. Never publish a Docker
+Version tags create a GitHub Release containing all platform packages, one compressed Docker image archive per
+architecture, and SHA-256 checksums. Each archive is exported and reload-verified inside the native build job,
+carries the release version and full-commit `sha-*` tags, and contains only its own architecture. Never publish a Docker
 manifest until Go/frontend tests, an actual Chromium launch, and the packaged server health check have passed for
 every architecture.
 

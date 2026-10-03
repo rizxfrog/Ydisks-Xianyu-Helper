@@ -228,10 +228,21 @@ Windows 和 macOS 托盘启动时会自动启动后台服务，并显示检查�
 Linux 上传 amd64/arm64 tar 包，Windows 上传安装器，macOS 分别上传 arm64 和 amd64 安装包。
 分支构建只保留非正式 Actions artifacts；版本标签必须指向 `main` 中的提交，全部桌面端和 Docker
 构建验证成功后等待 `production-release` Environment 人工审批，审批通过才创建 GitHub Release、
-上传各平台安装包及 `SHA256SUMS`，并发布正式 Docker 标签。Windows
+上传各平台安装包、每个架构的 Docker 镜像压缩包及 `SHA256SUMS`，并发布正式 Docker 标签。Windows
 和 macOS 安装包使用工作流中配置的固定签名证书签名；未配置对应 GitHub Secrets 时，签名
 步骤会失败，不会生成可分发的安装包。当前仓库未配置正式签名证书时，Windows/macOS 正式发布
 会停在签名步骤；Linux 安装包不依赖桌面端签名证书。
+
+Docker 镜像压缩包命名为 `ydisks-xianyu-helper-docker-linux-<架构>-<版本>.tar.gz`，包内镜像同时带有
+版本标签和 `sha-<完整提交号>` 标签，可在没有 registry 网络的机器上离线加载。每个压缩包只包含自身
+架构；需要一次获取多架构时仍使用 `docker pull` 从 GHCR 拉取：
+
+```bash
+docker load --input ydisks-xianyu-helper-docker-linux-amd64-1.2.3.tar.gz
+# compose.yml 默认使用 latest 且 pull_policy 为 always；离线导入后指向已加载的版本标签并禁止拉取。
+export XIANYU_IMAGE=ghcr.io/christ9038/ydisks-xianyu-helper:1.2.3
+docker compose up -d --pull never
+```
 
 GitHub Release 正文使用正式标签所指向提交的短 SHA 和完整 Git commit message（主题和正文），不会展开
 标签之间的全部历史提交。重跑同名标签时会同步更新正文并覆盖发布附件，不会使用 GitHub 自动生成的
@@ -485,6 +496,10 @@ ARM64 Linux 拉取 arm64，不需要手动设置 `platform`。
 安装包构建成功并通过人工审批，之后才生成版本 manifest、更新 `latest` 并创建 GitHub Release。
 
 生产环境建议使用明确的版本标签或 SHA 标签，避免上游更新导致未经验证的自动升级。
+
+正式版本的 GitHub Release 还会为每个架构附加一个
+`ydisks-xianyu-helper-docker-linux-<架构>-<版本>.tar.gz`，供无法访问 GHCR 的环境离线导入：
+使用 `docker load --input <文件>` 加载后按需重新打标签。
 
 ### Compose 服务
 

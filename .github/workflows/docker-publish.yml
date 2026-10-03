@@ -259,6 +259,65 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: 导出并校验 Docker 镜像压缩包
+        if: inputs.app_version != ''
+        shell: bash
+        env:
+          IMAGE_NAME: ${{ steps.image.outputs.name }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          APP_VERSION: ${{ needs.verify.outputs.app_version }}
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          set -Eeuo pipefail
+          image_ref="$IMAGE_NAME@$IMAGE_DIGEST"
+          version_tag="$IMAGE_NAME:$APP_VERSION"
+          sha_tag="$IMAGE_NAME:sha-$GITHUB_SHA"
+
+          docker tag "$image_ref" "$version_tag"
+          docker tag "$image_ref" "$sha_tag"
+
+          mkdir -p dist/docker-images
+          archive="dist/docker-images/ydisks-xianyu-helper-docker-linux-${TARGET_ARCH}-${APP_VERSION}.tar.gz"
+          # 镜像层本身已 gzip 压缩，二次压缩几乎不再减小体积，使用 gzip -1 控制导出耗时。
+          docker image save "$version_tag" "$sha_tag" | gzip -1 > "$archive"
+          gzip --test "$archive"
+          test -s "$archive"
+
+          expected_id="$(docker image inspect --format '{{.Id}}' "$version_tag")"
+          # 先删除本地镜像再重新加载，确保归档可以独立还原，而不是复用 daemon 中已有的镜像层。
+          docker image rm -f "$expected_id" >/dev/null
+          docker load --input "$archive"
+
+          loaded_id="$(docker image inspect --format '{{.Id}}' "$version_tag")"
+          if [ "$loaded_id" != "$expected_id" ]; then
+            echo "Docker 镜像压缩包还原后的镜像与已验证镜像不一致。" >&2
+            exit 1
+          fi
+          loaded_arch="$(docker image inspect --format '{{.Architecture}}' "$version_tag")"
+          loaded_os="$(docker image inspect --format '{{.Os}}' "$version_tag")"
+          if [ "$loaded_arch" != "$TARGET_ARCH" ] || [ "$loaded_os" != linux ]; then
+            echo "Docker 镜像压缩包架构错误：预期 linux/$TARGET_ARCH，实际 $loaded_os/$loaded_arch。" >&2
+            exit 1
+          fi
+          for expected_tag in "$version_tag" "$sha_tag"; do
+            if ! docker image inspect --format '{{range .RepoTags}}{{println .}}{{end}}' "$version_tag" | grep -Fxq "$expected_tag"; then
+              echo "Docker 镜像压缩包缺少标签：$expected_tag" >&2
+              exit 1
+            fi
+          done
+          ls -l "$archive"
+
+      - name: 上传 Docker 镜像压缩包
+        if: inputs.app_version != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: ydisks-docker-image-${{ matrix.arch }}
+          path: dist/docker-images/*.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+          # 归档已由 gzip 压缩，zip 容器不再重复压缩以节省上传耗时。
+          compression-level: 0
+
   publish:
     name: 合并多架构镜像
     if: inputs.app_version == ''

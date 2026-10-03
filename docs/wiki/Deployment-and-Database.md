@@ -34,7 +34,9 @@ The source service defaults to `-addr :59188` and listens on all interfaces. Doc
 
 Git tags are the source of release versions. A release tag must use the `v1.2.3` format and point to a commit already included in `main`.
 
-After a release tag is pushed, `.github/workflows/release.yml` builds desktop packages and Docker images from that tag; it does not reuse artifacts built earlier from `main`. After build, Chromium launch, and `/health` checks pass, the `production-release` Environment still requires manual approval. Only after approval does the workflow create the GitHub Release, upload packages and `SHA256SUMS`, and update release image tags.
+After a release tag is pushed, `.github/workflows/release.yml` builds desktop packages and Docker images from that tag; it does not reuse artifacts built earlier from `main`. After build, Chromium launch, and `/health` checks pass, the `production-release` Environment still requires manual approval. Only after approval does the workflow create the GitHub Release, upload packages, per-architecture Docker image archives and `SHA256SUMS`, and update release image tags.
+
+Each Docker archive is named `ydisks-xianyu-helper-docker-linux-<arch>-<version>.tar.gz` and contains only that architecture, tagged with the release version and `sha-<full-commit>`. Load it with `docker load --input <file>` when the target host cannot reach GHCR; `docker pull` remains the multi-architecture path.
 
 The GitHub Release body uses the short SHA and complete commit message (subject and body) of the tagged commit. It does not expand all history between tags. Re-running the same tag updates the body and replaces attachments.
 

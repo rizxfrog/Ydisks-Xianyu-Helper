@@ -388,7 +388,37 @@ jobs:
           path: dist/windows/playwright-runtime/amd64
           key: ${{ steps.cache-windows-playwright.outputs.cache-primary-key }}
 
+      - name: 检测 Windows 签名证书
+        id: windows_signing
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
+          WINDOWS_SIGNING_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
+          WINDOWS_SIGNING_IDENTITY: ${{ secrets.WINDOWS_SIGNING_IDENTITY }}
+        run: |
+          # 三个 Secrets 全空表示本次按未签名构建处理（开发构建或预发布标签），
+          # 跳过签名并产出未签名安装包；只配置了一部分视为配置错误，直接失败，
+          # 避免因为漏配某个 Secret 而把未签名包当作正式包分发。
+          $configured = @(
+            $env:WINDOWS_SIGNING_PFX_BASE64,
+            $env:WINDOWS_SIGNING_PFX_PASSWORD,
+            $env:WINDOWS_SIGNING_IDENTITY
+          ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+          $configured = @($configured)
+          if ($configured.Count -eq 3) {
+            "enabled=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host '检测到 Windows 签名证书 Secrets，将签名 Windows 产物。'
+          } elseif ($configured.Count -eq 0) {
+            "enabled=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host '::warning::未配置 Windows 签名证书 Secrets，本次产出未签名 Windows 安装包，不可作为正式签名包分发。'
+            '### ⚠️ Windows 安装包未签名' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+            '未配置 `WINDOWS_SIGNING_PFX_BASE64` / `WINDOWS_SIGNING_PFX_PASSWORD` / `WINDOWS_SIGNING_IDENTITY`，本次运行跳过 Authenticode 签名。' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          } else {
+            throw 'Windows 签名证书 Secrets 配置不完整：WINDOWS_SIGNING_PFX_BASE64、WINDOWS_SIGNING_PFX_PASSWORD、WINDOWS_SIGNING_IDENTITY 必须同时配置或同时留空。'
+          }
+
       - name: 导入 Windows 签名证书
+        if: steps.windows_signing.outputs.enabled == 'true'
         shell: pwsh
         env:
           WINDOWS_SIGNING_PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
@@ -401,6 +431,7 @@ jobs:
           "WINDOWS_SIGNING_PFX_PATH=$pfxPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: 签名 Windows 桌面程序
+        if: steps.windows_signing.outputs.enabled == 'true'
         shell: pwsh
         env:
           WINDOWS_SIGNING_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
@@ -474,6 +505,7 @@ jobs:
           }
 
       - name: 签名 Windows 安装器
+        if: steps.windows_signing.outputs.enabled == 'true'
         shell: pwsh
         env:
           WINDOWS_SIGNING_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
@@ -717,7 +749,47 @@ jobs:
             dist/macos/playwright-runtime/amd64
           key: ${{ steps.cache-macos-playwright.outputs.cache-primary-key }}
 
+      - name: 检测 macOS 签名证书
+        id: macos_signing
+        env:
+          MACOS_SIGNING_P12_BASE64: ${{ secrets.MACOS_SIGNING_P12_BASE64 }}
+          MACOS_INSTALLER_SIGNING_P12_BASE64: ${{ secrets.MACOS_INSTALLER_SIGNING_P12_BASE64 }}
+          MACOS_SIGNING_P12_PASSWORD: ${{ secrets.MACOS_SIGNING_P12_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          MACOS_INSTALLER_SIGNING_IDENTITY: ${{ secrets.MACOS_INSTALLER_SIGNING_IDENTITY }}
+        run: |
+          set -Eeuo pipefail
+          # 五个 Secrets 全空表示本次按未签名构建处理（开发构建或预发布标签），
+          # 跳过证书导入并产出未签名 pkg；只配置了一部分视为配置错误，直接失败，
+          # 避免因为漏配某个 Secret 而产出半签名或未签名包却不被察觉。
+          configured=0
+          for value in \
+            "$MACOS_SIGNING_P12_BASE64" \
+            "$MACOS_INSTALLER_SIGNING_P12_BASE64" \
+            "$MACOS_SIGNING_P12_PASSWORD" \
+            "$MACOS_SIGNING_IDENTITY" \
+            "$MACOS_INSTALLER_SIGNING_IDENTITY"; do
+            if [ -n "$value" ]; then
+              configured=$((configured + 1))
+            fi
+          done
+          if [ "$configured" -eq 5 ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "检测到 macOS 签名证书 Secrets，将签名 macOS 产物。"
+          elif [ "$configured" -eq 0 ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::未配置 macOS 签名证书 Secrets，本次产出未签名 pkg，不可作为正式签名包分发。"
+            {
+              echo '### ⚠️ macOS 安装包未签名'
+              echo '未配置 `MACOS_SIGNING_P12_BASE64` / `MACOS_INSTALLER_SIGNING_P12_BASE64` / `MACOS_SIGNING_P12_PASSWORD` / `MACOS_SIGNING_IDENTITY` / `MACOS_INSTALLER_SIGNING_IDENTITY`，本次运行跳过 codesign 与 productsign。'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "macOS 签名证书 Secrets 配置不完整：五个 MACOS_* 签名 Secrets 必须同时配置或同时留空。" >&2
+            exit 1
+          fi
+
       - name: 导入 macOS 签名证书
+        if: steps.macos_signing.outputs.enabled == 'true'
         env:
           MACOS_SIGNING_P12_BASE64: ${{ secrets.MACOS_SIGNING_P12_BASE64 }}
           MACOS_INSTALLER_SIGNING_P12_BASE64: ${{ secrets.MACOS_INSTALLER_SIGNING_P12_BASE64 }}

@@ -368,15 +368,17 @@ mkdir -p /tmp/ydisks-local-data
 curl -fsS http://127.0.0.1:59189/health
 ```
 
-本地没有签名身份时可以生成未签名 pkg，但必须明确告知未签名状态；CI 使用固定签名 Secrets 生成可分发包。
+本地没有签名身份时可以生成未签名 pkg，但必须明确告知未签名状态；CI 在配置了固定签名 Secrets 时生成已签名分发包，Secrets 全部缺失时显式产出并标注未签名包，部分缺失直接失败。
 
 ## CI desktop package rules
 
 Do not manually assemble desktop packages in CI. The desktop workflow must build the embedded frontend,
 compile the platform binaries, restore or populate the architecture-specific Playwright runtime cache,
-assemble the package with the platform packaging script, and run the package-specific signing step.
-Windows uses `packaging/windows/installer.iss`; macOS uses `packaging/macos/build-pkg.sh`; Linux archives
-the directory containing `install.sh`, `uninstall.sh`, the systemd unit, binaries and matching runtime.
+assemble the package with the platform packaging script, and run the package-specific signing step when the
+platform signing Secrets are configured. Windows and macOS detect their Secrets up front: all present means
+sign, all absent means skip signing and publish an explicitly unsigned package with a visible warning, and a
+partial set fails the job. Windows uses `packaging/windows/installer.iss`; macOS uses `packaging/macos/build-pkg.sh`;
+Linux archives the directory containing `install.sh`, `uninstall.sh`, the systemd unit, binaries and matching runtime.
 
 ## Architecture
 

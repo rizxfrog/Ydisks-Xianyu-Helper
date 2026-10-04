@@ -50,7 +50,7 @@ Docker tags:
 
 The current Docker workflow has a branch-push entry only for `dev`; `main` does not build a branch image but remains a base branch for release tags. `latest` changes only during approved publication of a `v1.2.3`-shaped tag, not on every `dev` commit or other `v`-prefixed tag. Pin production to `v1.2.3`, `1.2.3`, or a SHA tag; Compose uses `latest` by default.
 
-Formal Windows and macOS package releases still require the corresponding signing-certificate Secrets. Without them, those platforms fail at signing. Linux packages do not require desktop signing certificates.
+Windows and macOS package releases sign with the corresponding signing-certificate Secrets when they are configured. If all of those Secrets are absent, the workflow skips signing, prints a prominent warning, and still publishes an explicitly unsigned package; configuring only some of them fails the job. Linux packages do not require desktop signing certificates.
 
 ## Standalone packages
 

@@ -229,9 +229,9 @@ Linux 上传 amd64/arm64 tar 包，Windows 上传安装器，macOS 分别上传 
 分支构建只保留非正式 Actions artifacts；全部桌面端和 Docker
 构建验证成功后等待 `production-release` Environment 人工审批，审批通过才创建 GitHub Release、
 上传各平台安装包、每个架构的 Docker 镜像压缩包及 `SHA256SUMS`，并发布对应 Docker 标签。Windows
-和 macOS 安装包使用工作流中配置的固定签名证书签名；未配置对应 GitHub Secrets 时，签名
-步骤会失败，不会生成可分发的安装包。当前仓库未配置正式签名证书时，Windows/macOS 正式发布
-会停在签名步骤；Linux 安装包不依赖桌面端签名证书。
+和 macOS 安装包在工作流中配置了固定签名证书 Secrets 时签名；未配置时工作流会跳过签名并显式
+标注未签名状态，仍然产出未签名安装包，可用于开发构建和预发布标签，但不能作为正式签名包分发。
+只配置了其中一部分 Secrets 会直接失败，不会静默产出未签名包；Linux 安装包不依赖桌面端签名证书。
 
 `v1.2.3` 形状的标签会额外发布 `1.2.3`、`1.2` 和 `latest` 镜像标签；其他 `v` 开头标签只发布
 标签本身和完整提交号 `sha-*` 标签，避免预发布标签移动生产环境默认使用的 `latest`。

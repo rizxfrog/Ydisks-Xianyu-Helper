@@ -200,7 +200,9 @@ Formal releases provide Windows, macOS arm64/amd64, and Linux amd64/arm64 packag
 image archive per architecture. Any tag starting with `v` triggers the release workflow; the tag may point to any
 branch. The workflow builds and tests every native architecture, launches Chromium, checks /health, waits for
 production-release Environment approval, and then publishes packages, Docker image archives, SHA256SUMS, Docker
-tags, and a GitHub Release. Windows and macOS signing requires the configured certificate Secrets; Linux does not.
+tags, and a GitHub Release. Windows and macOS signing uses the configured certificate Secrets when present; if
+those Secrets are absent the workflow skips signing, emits a loud warning, and still publishes unsigned packages.
+Linux does not require desktop signing.
 
 Tags shaped like `v1.2.3` additionally publish the `1.2.3`, `1.2`, and `latest` image tags. Other `v`-prefixed
 tags publish only their own tag plus the full-commit `sha-*` tag, so a pre-release tag cannot move `latest`.

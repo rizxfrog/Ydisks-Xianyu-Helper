@@ -197,10 +197,13 @@ and open the log directory. Exiting the controller stops the backend first. Linu
 root on the matching architecture and uses systemd. Uninstall retains /var/lib/ydisks-xianyu-helper by default.
 
 Formal releases provide Windows, macOS arm64/amd64, and Linux amd64/arm64 packages, plus one compressed Docker
-image archive per architecture. Release tags use v1.2.3 format and must point to main. The release workflow builds
-and tests every native architecture, launches Chromium, checks /health, waits for production-release Environment
-approval, and then publishes packages, Docker image archives, SHA256SUMS, Docker tags, and a GitHub Release.
-Windows and macOS signing requires the configured certificate Secrets; Linux does not.
+image archive per architecture. Any tag starting with `v` triggers the release workflow; the tag may point to any
+branch. The workflow builds and tests every native architecture, launches Chromium, checks /health, waits for
+production-release Environment approval, and then publishes packages, Docker image archives, SHA256SUMS, Docker
+tags, and a GitHub Release. Windows and macOS signing requires the configured certificate Secrets; Linux does not.
+
+Tags shaped like `v1.2.3` additionally publish the `1.2.3`, `1.2`, and `latest` image tags. Other `v`-prefixed
+tags publish only their own tag plus the full-commit `sha-*` tag, so a pre-release tag cannot move `latest`.
 
 Docker image archives are named `ydisks-xianyu-helper-docker-linux-<arch>-<version>.tar.gz` and carry both the
 release version tag and the `sha-<full-commit>` tag, so they load without a registry connection. Each archive
@@ -300,7 +303,8 @@ ghcr.io/christ9038/ydisks-xianyu-helper:latest
 ~~~
 
 The dev branch publishes dev and sha-full-commit tags. A v1.2.3 tag publishes v1.2.3, 1.2.3, 1.2, latest, and
-sha-full-commit tags after all tests, native Chromium launches, health checks, desktop builds, and approval.
+sha-full-commit tags after all tests, native Chromium launches, health checks, desktop builds, and approval. Other
+`v`-prefixed tags publish only their own tag and the sha-full-commit tag, leaving `latest` untouched.
 Every formal GitHub Release also attaches one `ydisks-xianyu-helper-docker-linux-<arch>-<version>.tar.gz` per
 architecture for registries without GHCR access; load it with `docker load --input <file>` and retag as needed.
 

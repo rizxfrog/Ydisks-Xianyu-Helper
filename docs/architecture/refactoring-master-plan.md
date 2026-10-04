@@ -81,6 +81,8 @@ git diff --check
 
 ## 后续窄范围安全修复记录
 
+- 2026-10-04（发布触发规则放宽，本地未发布）：按用户要求移除正式发布的 main 分支归属限制和 `v1.2.3` 版本号形状限制，任意 `v` 开头标签都可构建。`.github/workflows/release.yml` 触发规则改为 `v*`，prepare 任务删除 `git merge-base --is-ancestor "$GITHUB_SHA" origin/main`、semver 正则和“必须是最新最高版本”判断，只保留非空版本解析；`tools/release/check-version.sh` 同步删除最高版本门禁，只校验标签仍指向本次构建提交。`desktop-cd.yml` 与 `docker-publish.yml` 的 prepare 步骤把 semver 正则替换为产物文件名/Docker 标签安全字符集校验，避免路径与标签非法字符在编译中途才失败。Docker manifest 步骤改为：任意 `v` 标签发布标签本身与 `sha-*`；只有 `v1.2.3` 形状标签才额外发布 `1.2.3`、`1.2` 和 `latest`，防止预发布标签移动 `compose.yml` 默认使用的 `latest`；同时修复非 semver 版本下 `${APP_VERSION%.*}` 生成重复标签的问题。文档同步更新 `README.md`、`README.zh-CN.md`、`AGENTS.md`、`docs/wiki/Deployment-and-Database.md`、`docs/wiki/部署与数据库.zh-CN.md`。验证：三个工作流 YAML 解析通过，`actionlint` 与基线相比无新增发现，`shellcheck` 对改动脚本无新增告警，`check-version.sh` 在临时仓库验证标签 SHA 通过/不匹配失败，Docker 标签派生与字符集用例全部通过。未修改六阶段状态、HTTP/OpenAPI、数据库 schema、冻结 CAPTCHA 或业务代码；未执行真实发布。
+
 - 2026-09-20（订单批量同步详情风控修复，本地未发布）：批量“一键同步订单”现在只调用已售订单列表接口，直接写回列表提供的订单号、商品、买家、时间、状态、数量、金额、收货信息和砍价标记，并继续执行缺失订单清理；不再扫描本地订单游标或批量请求订单详情，因此列表同步不会因详情接口风控失败。详情中的 `spec_name`、`spec_value` 等列表缺失字段仍由单订单刷新或自动发货准备阶段按需补全，自动发货的规格匹配链路未改变。旧任务结果中的详情统计字段保留兼容形状并在批量列表同步中固定为零。新增批量详情调用次数为零、无本地详情游标读取及列表字段落库回归；`go test ./... -count=1`、`go vet ./internal/application/orders`、`make comments` 与 `git diff --check` 通过。未修改数据库 schema、HTTP/OpenAPI、冻结 CAPTCHA 或六阶段状态，未调用真实账号平台。
 
 - 2026-09-19（账号级自动发货规格匹配修复，本地未发布）：修复账号级付款发货规则已命中但因订单携带 SKU 被错误过滤的问题。账号级 `order_paid` 规则只有配置 JSON 明确为布尔值 `allow_all_items: true` 时，才允许空规格发卡/模板动作匹配任意订单规格；商品级规则仍要求完整规格组合匹配。该授权随自动化运行快照固化，并覆盖普通事件、人工完整发货和恢复运行，避免重试时重新猜测规则范围。新增动作规划、授权门禁及 SQLite 端到端带规格订单发卡回归；`make comments`、自动化全量测试、`go vet ./internal/automation` 与 `git diff --check` 通过。未修改数据库 schema、HTTP/OpenAPI、冻结 CAPTCHA 或六阶段状态；未调用真实账号平台。

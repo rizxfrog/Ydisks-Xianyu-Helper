@@ -224,14 +224,17 @@ Windows 和 macOS 托盘启动时会自动启动后台服务，并显示检查�
 `journalctl -u ydisks-xianyu-helper.service` 查看。
 
 桌面端安装包由 `.github/workflows/desktop-cd.yml` 在 `dev` 分支上持续构建；正式版本由统一的
-`.github/workflows/release.yml` 在 `v1.2.3` 格式的版本标签上协调构建：
+`.github/workflows/release.yml` 在 `v` 开头的版本标签上协调构建，标签可以指向任意分支：
 Linux 上传 amd64/arm64 tar 包，Windows 上传安装器，macOS 分别上传 arm64 和 amd64 安装包。
-分支构建只保留非正式 Actions artifacts；版本标签必须指向 `main` 中的提交，全部桌面端和 Docker
+分支构建只保留非正式 Actions artifacts；全部桌面端和 Docker
 构建验证成功后等待 `production-release` Environment 人工审批，审批通过才创建 GitHub Release、
-上传各平台安装包、每个架构的 Docker 镜像压缩包及 `SHA256SUMS`，并发布正式 Docker 标签。Windows
+上传各平台安装包、每个架构的 Docker 镜像压缩包及 `SHA256SUMS`，并发布对应 Docker 标签。Windows
 和 macOS 安装包使用工作流中配置的固定签名证书签名；未配置对应 GitHub Secrets 时，签名
 步骤会失败，不会生成可分发的安装包。当前仓库未配置正式签名证书时，Windows/macOS 正式发布
 会停在签名步骤；Linux 安装包不依赖桌面端签名证书。
+
+`v1.2.3` 形状的标签会额外发布 `1.2.3`、`1.2` 和 `latest` 镜像标签；其他 `v` 开头标签只发布
+标签本身和完整提交号 `sha-*` 标签，避免预发布标签移动生产环境默认使用的 `latest`。
 
 Docker 镜像压缩包命名为 `ydisks-xianyu-helper-docker-linux-<架构>-<版本>.tar.gz`，包内镜像同时带有
 版本标签和 `sha-<完整提交号>` 标签，可在没有 registry 网络的机器上离线加载。每个压缩包只包含自身
@@ -488,12 +491,14 @@ ARM64 Linux 拉取 arm64，不需要手动设置 `platform`。
 | --- | --- |
 | `dev` 分支 | `dev`、`sha-<完整提交号>` |
 | `v1.2.3` 标签 | `v1.2.3`、`1.2.3`、`1.2`、`latest`、`sha-<完整提交号>` |
+| 其他 `v` 开头标签 | 标签本身、`sha-<完整提交号>` |
 
 当前 Docker 工作流的分支 push 入口只有 `dev`；`dev` 是日常调试通道，生成 `dev` 和完整提交号 SHA 标签。
-`main` 不会触发该工作流的分支镜像构建，但仍是正式版本标签的基准分支。推送
-`v1.2.3` 格式的 Git 标签会触发统一正式发布流程。所有 Docker 发布都必须先通过 Go/前端测试，
+`main` 不会触发该工作流的分支镜像构建，但仍是正式版本标签的基准分支之一。推送
+`v` 开头的 Git 标签会触发统一正式发布流程，标签可以指向任意分支。所有 Docker 发布都必须先通过 Go/前端测试，
 再对每个原生架构镜像实际启动 Chromium 和服务并通过 `/health` 检查；正式版还必须等全部桌面
-安装包构建成功并通过人工审批，之后才生成版本 manifest、更新 `latest` 并创建 GitHub Release。
+安装包构建成功并通过人工审批，之后才生成版本 manifest 并创建 GitHub Release。只有 `v1.2.3` 形状的标签
+会同时更新 `latest`，其他 `v` 开头标签不会移动生产环境默认使用的 `latest`。
 
 生产环境建议使用明确的版本标签或 SHA 标签，避免上游更新导致未经验证的自动升级。
 

@@ -32,7 +32,7 @@ The source service defaults to `-addr :59188` and listens on all interfaces. Doc
 
 ## Versions, images, and releases
 
-Git tags are the source of release versions. A release tag must use the `v1.2.3` format and point to a commit already included in `main`.
+Git tags are the source of release versions. Any `v`-prefixed tag triggers the release workflow, and the tag may point to any branch; `v1.2.3`-shaped tags additionally publish the semantic and `latest` image tags.
 
 After a release tag is pushed, `.github/workflows/release.yml` builds desktop packages and Docker images from that tag; it does not reuse artifacts built earlier from `main`. After build, Chromium launch, and `/health` checks pass, the `production-release` Environment still requires manual approval. Only after approval does the workflow create the GitHub Release, upload packages, per-architecture Docker image archives and `SHA256SUMS`, and update release image tags.
 
@@ -46,8 +46,9 @@ Docker tags:
 | --- | --- | --- |
 | `dev` branch | `dev`, `sha-<full-commit>` | No; for daily debugging. |
 | `v1.2.3` tag | `v1.2.3`, `1.2.3`, `1.2`, `latest`, `sha-<full-commit>` | Yes. |
+| Other `v`-prefixed tag | `<tag>`, `sha-<full-commit>` | Yes; does not move `latest`. |
 
-The current Docker workflow has a branch-push entry only for `dev`; `main` does not build a branch image but remains the base branch for release tags. `latest` changes only during approved release publication, not on every `dev` commit. Pin production to `v1.2.3`, `1.2.3`, or a SHA tag; Compose uses `latest` by default.
+The current Docker workflow has a branch-push entry only for `dev`; `main` does not build a branch image but remains a base branch for release tags. `latest` changes only during approved publication of a `v1.2.3`-shaped tag, not on every `dev` commit or other `v`-prefixed tag. Pin production to `v1.2.3`, `1.2.3`, or a SHA tag; Compose uses `latest` by default.
 
 Formal Windows and macOS package releases still require the corresponding signing-certificate Secrets. Without them, those platforms fail at signing. Linux packages do not require desktop signing certificates.
 

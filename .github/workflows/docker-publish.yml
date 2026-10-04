@@ -35,12 +35,14 @@ jobs:
           set -Eeuo pipefail
           if [ -n "${{ inputs.app_version }}" ]; then
             app_version="${{ inputs.app_version }}"
+            # 正式版本会直接作为 Docker 标签和发布产物文件名；这里只校验非空和标签字符集，
+            # 以便 v 开头的任意标签都能构建。分支构建的派生版本不作为镜像标签使用。
+            if [[ ! "$app_version" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+              echo "正式版本不能用作 Docker 标签（只允许字母、数字、下划线、点、横线）：$app_version" >&2
+              exit 1
+            fi
           else
             app_version="${GITHUB_REF_NAME}-${GITHUB_SHA::12}"
-          fi
-          if [ -n "${{ inputs.app_version }}" ] && [[ ! "$app_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "正式版本必须符合 1.2.3 格式：$app_version" >&2
-            exit 1
           fi
           echo "app_version=$app_version" >> "$GITHUB_OUTPUT"
           echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
